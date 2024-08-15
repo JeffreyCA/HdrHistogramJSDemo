@@ -148,7 +148,7 @@
                     }
                 },
                 vAxis: { title: 'Latency (' + displayUnitText + ')', minValue: 0, viewWindow: { max: maxYRange } },
-                legend: { position: 'bottom' }
+                legend: { position: 'right', alignment: "center", textStyle: { fontSize: 11 } },
             };
 
             // add tooltips with correct percentile text to data:
@@ -251,7 +251,7 @@
     <script>
         function doExport(event) {
             const defaultFileName = 'Histogram.png';
-            const scaleFactor = 1.5;
+            const scaleFactor = 1.25;
 
             const chartWidth = document.getElementById('chart_div').offsetWidth;
             const chartHeight = document.getElementById('chart_div').offsetHeight;
@@ -334,6 +334,10 @@
             }
         }
 
+        function getFilenameWithoutExt(filename) {
+            return escape(filename.split('.').slice(0, -1).join('.'));
+        }
+
         function handleFileSelectMemtierAppended(evt) {
             lastEvt = evt;
             var files = evt.target.files; // FileList object
@@ -341,28 +345,42 @@
 
             var names = [];
             var histos = [];
+            var fileNames = [];
 
             fileDisplayArea.innerText = "file selected...\n";
+            const showMedianOnly = getShowMedianResultForAppend();
 
             // Loop through the FileList and render image files as thumbnails.
             for (var i = 0, f; f = files[i]; i++) {
                 var reader = new FileReader();
 
                 reader.onload = (function (theFile) {
+                    fileNames.push(theFile.name);
                     return function (e) {
-                        var parsedCompressedHistograms = parseMemtierAppendedJson(e.target.result);
-
-                        if (parsedCompressedHistograms) {
-                            for (let i = 0; i < parsedCompressedHistograms.length; i++) {
-                                const histogram = parsedCompressedHistograms[i];
-                                const nameWithIndex = escape(theFile.name.split('.').slice(0, -1).join('.')) + " " + (i + 1);
-                                histos.push(histogram);
+                        const rawJson = e.target.result;
+                        if (showMedianOnly) {
+                            const medianHistogram = parseMedianRPSMemtierAppendedJson(rawJson);
+                            if (medianHistogram) {
+                                const nameWithIndex = getFilenameWithoutExt(theFile.name);
+                                histos.push(medianHistogram);
                                 names.push(nameWithIndex);
+                                setChartData(names, histos);
+                                drawChart();
                             }
-                            setChartData(names, histos);
-                            drawChart();
+                        } else {
+                            const parsedCompressedHistograms = parseMemtierAppendedJson(rawJson);
+                            if (parsedCompressedHistograms) {
+                                for (let i = 0; i < parsedCompressedHistograms.length; i++) {
+                                    const histogram = parsedCompressedHistograms[i];
+                                    const nameWithIndex = getFilenameWithoutExt(theFile.name) + " " + (i + 1);
+                                    histos.push(histogram);
+                                    names.push(nameWithIndex);
+                                }
+                                setChartData(names, histos);
+                                drawChart();
+                            }
                         }
-                        fileDisplayArea.innerText = " Plotting input from: " + names + "\n";
+                        fileDisplayArea.innerText = "Plotting input from: " + fileNames + "\n";
                     };
                 })(f);
 
@@ -378,6 +396,7 @@
 
             var names = [];
             var histos = [];
+            var fileNames = [];
 
             fileDisplayArea.innerText = "file selected...\n";
 
@@ -386,16 +405,17 @@
                 var reader = new FileReader();
 
                 reader.onload = (function (theFile) {
+                    fileNames.push(theFile.name);
                     return function (e) {
                         var parsedCompressedHistogram = parseMemtierRunCountJson(e.target.result);
                         if (parsedCompressedHistogram) {
-                            const nameWithIndex = escape(theFile.name.split('.').slice(0, -1).join('.')) + " " + (i + 1);
+                            const nameWithIndex = getFilenameWithoutExt(theFile.name) + " " + (i + 1);
                             histos.push(parsedCompressedHistogram);
                             names.push(nameWithIndex);
                             setChartData(names, histos);
                             drawChart();
                         }
-                        fileDisplayArea.innerText = " Plotting input from: " + names + "\n";
+                        fileDisplayArea.innerText = "Plotting input from: " + fileNames + "\n";
                     };
                 })(f);
 
@@ -438,6 +458,11 @@
             return checkedValue;
         }
 
+        function getShowMedianResultForAppend() {
+            var showMedianCheckbox = document.getElementById("showMedianRPS");
+            return showMedianCheckbox.checked;
+        }
+
         function forceReload() {
             const currentFormat = getCurrentFormat();
             console.log("Checked value: " + currentFormat);
@@ -461,13 +486,35 @@
             return { typed: '' };
         }
 
+        function toggleMedianRPS(checkbox) {
+            forceReload();
+            return { typed: '' };
+        }
+
         function parseMemtierAppendedJson(rawJson) {
             var commandTypeText = getCommandTypeText();
             const jsonObject = JSON.parse(rawJson);
-
-            // Iterate over the keys of the object
             const compressedHistograms = jsonObject.map(obj => obj["ALL STATS"][commandTypeText]["Percentile Latencies"]["Histogram log format"]["Compressed Histogram"]);
             return compressedHistograms;
+        }
+
+        function parseMedianRPSMemtierAppendedJson(rawJson) {
+            var commandTypeText = getCommandTypeText();
+            const jsonObject = JSON.parse(rawJson);
+
+            // Extract RPS and histogram values
+            const results = jsonObject.map(result => ({
+                rps: result["ALL STATS"][commandTypeText]["Ops/sec"],
+                histogram: result["ALL STATS"][commandTypeText]["Percentile Latencies"]["Histogram log format"]["Compressed Histogram"]
+            }));
+
+            // Sort by RPS
+            results.sort((a, b) => a.rps - b.rps);
+
+            // Calculate median rps
+            const midIndex = Math.floor(results.length / 2);
+            const medianResult = results[midIndex]; // Handle odd number of objs?
+            return medianResult.histogram;
         }
 
         function parseMemtierRunCountJson(rawJson) {
@@ -619,7 +666,7 @@
 </head>
 
 <body>
-    <h2>HdrHistogram Plotter (memtier support)</h2>
+    <h2>HdrHistogram Plotter for memtier_benchmark</h2>
     <div id="errorbox" style="background-color: #f8d7da; margin-bottom: 10px;"></div>
     <button id="errorbox-close" onclick="clearErrorBox()" style="margin-left: 10px; display: none;">Dismiss</button>
     <input type="radio" name="formatType" value="group-compressed-histogram" checked
@@ -649,6 +696,7 @@
         <div id="group-memtier-append" style="display: none;">
             <input type="file" id="files-append" name="files[]" multiple onclick="this.value=null;" />
             <pre id="fileDisplayArea-append">Please select file(s) above.</pre>
+            <input type="checkbox" id="showMedianRPS" onchange="toggleMedianRPS(this)"> Show histogram for median RPS run only
         </div>
 
         <div id="group-memtier-runcount" style="display: none;">
@@ -732,6 +780,7 @@
     <script>
         Split(['#chart_div', '#chart_split_right'], {
             minSize: 200,
+            sizes: [40, 60],
         })
         var gutter = document.getElementsByClassName("gutter")[0];
         var dragging = false;
