@@ -136,7 +136,6 @@
             chartOptions = {
                 title: 'Latency by Percentile Distribution',
                 height: 500,
-                //            hAxis: {title: 'Percentile', minValue: 0, logScale: true, ticks:ticks },
                 hAxis: {
                     title: "Percentile",
                     minValue: 1,
@@ -149,7 +148,8 @@
                     }
                 },
                 vAxis: { title: 'Latency (' + displayUnitText + ')', minValue: 0, viewWindow: { max: maxYRange } },
-                legend: { position: 'right', alignment: "center", textStyle: { fontSize: 11 } },
+                legend: { position: 'right', alignment: "center" /*, textStyle: { fontSize: 11 }*/ },
+                chartArea: { left: 75, top: 50, right: 200, height: 400 }
             };
 
             // add tooltips with correct percentile text to data:
@@ -252,7 +252,7 @@
     <script>
         function doExport(event) {
             const defaultFileName = 'Histogram.png';
-            const scaleFactor = 1.25;
+            const scaleFactor = 1.375;
 
             const chartWidth = document.getElementById('chart_div').offsetWidth;
             const chartHeight = document.getElementById('chart_div').offsetHeight;
@@ -263,8 +263,9 @@
             const scaledChartOptions = structuredClone(chartOptions);
             scaledChartOptions.width = chartWidth * scaleFactor;
             scaledChartOptions.height = chartHeight * scaleFactor;
-            scaledChart.draw(dataView, scaledChartOptions);
+            scaledChartOptions.chartArea.height = chartOptions.chartArea.height * scaleFactor;
 
+            scaledChart.draw(dataView, scaledChartOptions);
             const imageUri = scaledChart.getImageURI();
 
             if (window.showSaveFilePicker) {
@@ -410,7 +411,7 @@
                     return function (e) {
                         var parsedCompressedHistogram = parseMemtierRunCountJson(e.target.result);
                         if (parsedCompressedHistogram) {
-                            const nameWithIndex = getFilenameWithoutExt(theFile.name) + " " + (i + 1);
+                            const nameWithIndex = getFilenameWithoutExt(theFile.name);
                             histos.push(parsedCompressedHistogram);
                             names.push(nameWithIndex);
                             setChartData(names, histos);
