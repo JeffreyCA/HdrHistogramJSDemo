@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <style type="text/css">
         div.histo {
-            visibility: hidden
+            display: none;
         }
         .split {
             display: flex;
@@ -57,6 +57,9 @@
 
         var chartData = null;
         var chart = null;
+        var dataView = null;
+        var chartOptions = null;
+
         function setChartData(names, histos) {
             while (names.length < histos.length) {
                 names.push('Unknown');
@@ -112,7 +115,7 @@
             return displayUnitSelection.options[displayUnitSelIndex].innerHTML;
         }
 
-        var maxPercentile = 1000000;
+        var maxPercentile = 10000;
         var maxYRange = undefined;
 
         function drawChart() {
@@ -129,13 +132,15 @@
 
             var displayUnitText = getDisplayUnitText();
 
-            var options = {
+            chartOptions = {
                 title: 'Latency by Percentile Distribution',
-                height: 480,
+                height: 500,
                 //            hAxis: {title: 'Percentile', minValue: 0, logScale: true, ticks:ticks },
                 hAxis: {
                     title: "Percentile",
-                    minValue: 1, logScale: true, ticks: ticks,
+                    minValue: 1,
+                    logScale: true,
+                    ticks: ticks,
                     viewWindowMode: 'explicit',
                     viewWindow: {
                         max: maxPercentile,
@@ -165,16 +170,11 @@
                     })(i)
                 });
             }
-            var view = new google.visualization.DataView(chartData);
-            view.setColumns(columns);
+            dataView = new google.visualization.DataView(chartData);
+            dataView.setColumns(columns);
 
             chart = new google.visualization.LineChart(document.getElementById('chart_div'));
-            chart.draw(view, options);
-
-            google.visualization.events.addListener(chart, 'ready', function () {
-                chart_div.innerHTML = '<img src="' + chart.getImageURI() + '">';
-            });
-
+            chart.draw(dataView, chartOptions);
         }
     </script>
     <script type="text/javascript">
@@ -250,7 +250,55 @@
     </script>
     <script>
         function doExport(event) {
-            saveSvgAsPng(document.querySelector('svg'), 'Histogram', 2.0);
+            const defaultFileName = 'Histogram.png';
+            const scaleFactor = 1.5;
+
+            const chartWidth = document.getElementById('chart_div').offsetWidth;
+            const chartHeight = document.getElementById('chart_div').offsetHeight;
+            const tempDiv = document.createElement('div');
+            document.body.appendChild(tempDiv);
+
+            const scaledChart = new google.visualization.LineChart(tempDiv);
+            const scaledChartOptions = structuredClone(chartOptions);
+            scaledChartOptions.width = chartWidth * scaleFactor;
+            scaledChartOptions.height = chartHeight * scaleFactor;
+            scaledChart.draw(dataView, scaledChartOptions);
+
+            const imageUri = scaledChart.getImageURI();
+
+            if (window.showSaveFilePicker) {
+                fetch(imageUri)
+                .then(res => {
+                    return res.blob();
+                })
+                .then(blob => {
+                    const options = {
+                        types: [
+                            {
+                                description: 'PNG Image',
+                                accept: {
+                                    'image/png': ['.png'],
+                                },
+                            },
+                        ],
+                        startIn: 'downloads',
+                        suggestedName: defaultFileName,
+                    };
+                    return window.showSaveFilePicker(options).then(function (handle) {
+                        return handle.createWritable().then(function (writable) {
+                            return writable.write(blob).then(function () {
+                                return writable.close();
+                            });
+                        });
+                    });
+                });
+            } else {
+                const saveImg = document.createElement("a");
+                saveImg.href = imageUri;
+                saveImg.download = defaultFileName;
+                saveImg.click();
+            }
+            tempDiv.remove();
             return { typed: '' };
         }
     </script>
@@ -341,8 +389,9 @@
                     return function (e) {
                         var parsedCompressedHistogram = parseMemtierRunCountJson(e.target.result);
                         if (parsedCompressedHistogram) {
+                            const nameWithIndex = escape(theFile.name.split('.').slice(0, -1).join('.')) + " " + (i + 1);
                             histos.push(parsedCompressedHistogram);
-                            names.push(escape(theFile.name));
+                            names.push(nameWithIndex);
                             setChartData(names, histos);
                             drawChart();
                         }
@@ -402,9 +451,13 @@
             }
         }
 
-        function timeUnitsSelected(evt) {
+        function timeUnitsChanged(evt) {
             forceReload();
-            // drawChart();
+            return { typed: '' };
+        }
+
+        function commandTypeChanged(evt) {
+            forceReload();
             return { typed: '' };
         }
 
@@ -620,14 +673,15 @@
 
         <div id="source-command-type">
             Command type:
-            <select name="units" size="1" id="commandTypeSelection" onChange="">
+            <select name="commands" id="commandTypeSelection" onChange="commandTypeChanged()">
                 <option selected value="Gets">Gets</option>
+                <option value="Sets">Sets</option>
             </select>
         </div>
 
         <div id="source-time-units" style="margin-top: 10px;">
             Source time units:
-            <select name="units" size="1" id="sourceTimeUnitSelection" onChange="timeUnitsSelected()">
+            <select name="units" size="1" id="sourceTimeUnitSelection" onChange="timeUnitsChanged()">
                 <option value="Latency (seconds)">seconds</option>
                 <option value="Latency (milliseconds)">milliseconds</option>
                 <option selected value="Latency (µs)">microseconds</option>
@@ -637,7 +691,7 @@
 
         <div id="display-time-units" style="margin-top: 10px;">
             Display time units:
-            <select name="units" size="1" id="displayTimeUnitSelection" onChange="timeUnitsSelected()">
+            <select name="units" size="1" id="displayTimeUnitSelection" onChange="timeUnitsChanged()">
                 <option value="Latency (seconds)">seconds</option>
                 <option selected value="Latency (milliseconds)">milliseconds</option>
                 <option value="Latency (µs)">microseconds</option>
@@ -671,14 +725,13 @@
 
     <!--Div that will hold the chart-->
     <div class="split">
-    <div id="chart_div">None Loaded</div>
+    <div id="chart_div" style="padding-right: 20px;">None Loaded</div>
     <div id="chart_split_right"></div>
     </div>
 
     <script>
         Split(['#chart_div', '#chart_split_right'], {
             minSize: 200,
-            sizes: [80, 20]
         })
         var gutter = document.getElementsByClassName("gutter")[0];
         var dragging = false;
@@ -697,9 +750,9 @@
     <p>
         Percentile range:
 
-        <input type="range" class="slider-width500" min="1" max="8" value="6" step="1" width="300px"
+        <input type="range" class="slider-width500" min="1" max="8" value="4" step="1" width="300px"
             onchange="showValue(this.value)" />
-        <span id="percentileRange">99.9999%</span>
+        <span id="percentileRange">99.99%</span>
         <script type="text/javascript">
             function showValue(newValue) {
                 var x = Math.pow(10, newValue);
