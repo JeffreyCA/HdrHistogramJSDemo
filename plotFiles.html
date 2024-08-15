@@ -6,6 +6,7 @@
         div.histo {
             display: none;
         }
+
         .split {
             display: flex;
             flex-direction: row;
@@ -268,30 +269,30 @@
 
             if (window.showSaveFilePicker) {
                 fetch(imageUri)
-                .then(res => {
-                    return res.blob();
-                })
-                .then(blob => {
-                    const options = {
-                        types: [
-                            {
-                                description: 'PNG Image',
-                                accept: {
-                                    'image/png': ['.png'],
+                    .then(res => {
+                        return res.blob();
+                    })
+                    .then(blob => {
+                        const options = {
+                            types: [
+                                {
+                                    description: 'PNG Image',
+                                    accept: {
+                                        'image/png': ['.png'],
+                                    },
                                 },
-                            },
-                        ],
-                        startIn: 'downloads',
-                        suggestedName: defaultFileName,
-                    };
-                    return window.showSaveFilePicker(options).then(function (handle) {
-                        return handle.createWritable().then(function (writable) {
-                            return writable.write(blob).then(function () {
-                                return writable.close();
+                            ],
+                            startIn: 'downloads',
+                            suggestedName: defaultFileName,
+                        };
+                        return window.showSaveFilePicker(options).then(function (handle) {
+                            return handle.createWritable().then(function (writable) {
+                                return writable.write(blob).then(function () {
+                                    return writable.close();
+                                });
                             });
                         });
                     });
-                });
             } else {
                 const saveImg = document.createElement("a");
                 saveImg.href = imageUri;
@@ -459,7 +460,7 @@
         }
 
         function getShowMedianResultForAppend() {
-            var showMedianCheckbox = document.getElementById("showMedianRPS");
+            var showMedianCheckbox = document.getElementById("radio-show-median");
             return showMedianCheckbox.checked;
         }
 
@@ -669,14 +670,15 @@
     <h2>HdrHistogram Plotter for memtier_benchmark</h2>
     <div id="errorbox" style="background-color: #f8d7da; margin-bottom: 10px;"></div>
     <button id="errorbox-close" onclick="clearErrorBox()" style="margin-left: 10px; display: none;">Dismiss</button>
-    <input type="radio" name="formatType" value="group-compressed-histogram" checked
-        onchange="toggleDiv('group-compressed-histogram')"> Compressed
-    histogram
-    <input type="radio" name="formatType" value="group-memtier-append" onchange="toggleDiv('group-memtier-append')">
-    memtier
-    JSON (append format)
-    <input type="radio" name="formatType" value="group-memtier-runcount" onchange="toggleDiv('group-memtier-runcount')">
-    memtier JSON (--run-count=N)
+    <input id="radio-compressed-histogram" type="radio" name="formatType" value="group-compressed-histogram" checked
+        onchange="toggleDiv('group-compressed-histogram')">
+    <label for="radio-compressed-histogram">Compressed histogram</label>
+    <input id="radio-memtier-append" type="radio" name="formatType" value="group-memtier-append"
+        onchange="toggleDiv('group-memtier-append')">
+    <label for="radio-memtier-append">memtier JSON (append format)</label>
+    <input id="radio-memtier-runcount" type="radio" name="formatType" value="group-memtier-runcount"
+        onchange="toggleDiv('group-memtier-runcount')">
+    <label for="radio-memtier-runcount">memtier JSON (--run-count=N)</label>
 
     <div style="border: 1px solid black; padding: 10px; margin-top: 10px; margin-bottom: 10px;">
         <div id="group-compressed-histogram">
@@ -696,7 +698,8 @@
         <div id="group-memtier-append" style="display: none;">
             <input type="file" id="files-append" name="files[]" multiple onclick="this.value=null;" />
             <pre id="fileDisplayArea-append">Please select file(s) above.</pre>
-            <input type="checkbox" id="showMedianRPS" onchange="toggleMedianRPS(this)"> Show histogram for median RPS run only
+            <input id="radio-show-median" type="checkbox" onchange="toggleMedianRPS(this)">
+            <label for="radio-show-median">Show histogram for median RPS run only</label>
         </div>
 
         <div id="group-memtier-runcount" style="display: none;">
@@ -773,8 +776,8 @@
 
     <!--Div that will hold the chart-->
     <div class="split">
-    <div id="chart_div" style="padding-right: 20px;">None Loaded</div>
-    <div id="chart_split_right"></div>
+        <div id="chart_div" style="padding-right: 20px;">None Loaded</div>
+        <div id="chart_split_right"></div>
     </div>
 
     <script>
