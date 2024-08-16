@@ -515,7 +515,10 @@
 
             // Calculate median rps
             const midIndex = Math.floor(results.length / 2);
-            const medianResult = results[midIndex]; // Handle odd number of objs?
+            if (results.length % 2 === 0) {
+                midIndex += 1;
+            }
+            const medianResult = results[midIndex];
             return medianResult.histogram;
         }
 
