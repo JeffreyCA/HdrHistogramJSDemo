@@ -22,10 +22,10 @@ window.onload = () => {
   // Load the Visualization API and the corechart package.
   google.load('visualization', '1.0', { packages: ['corechart'] });
 
-  $(window).on('error', function (e) {
+  window.onerror = function (e) {
     $('#errorbox').html(e.toString());
     $('#errorbox-close').css('display', 'block');
-  });
+  }
 
   chartWrapper = new ChartWrapper();
 
