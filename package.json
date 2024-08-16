@@ -1,0 +1,28 @@
+{
+  "name": "hdrhistogramjsdemo",
+  "version": "1.0.0",
+  "description": "Demo repository for HdrHistogramJS",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "dev": "parcel src/plotFiles.html",
+    "build": "parcel build src/plotFiles.html --public-url /HdrHistogramJSDemo",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "devDependencies": {
+    "@types/google.visualization": "^0.0.74",
+    "@types/jquery": "^3.5.30",
+    "@types/wicg-file-system-access": "^2023.10.5",
+    "gh-pages": "^6.1.1",
+    "parcel": "latest",
+    "prettier": "3.3.3",
+    "process": "^0.11.10"
+  },
+  "dependencies": {
+    "hdr-histogram-js": "^3.0.0",
+    "jquery": "^3.7.1",
+    "split.js": "^1.6.5"
+  }
+}
